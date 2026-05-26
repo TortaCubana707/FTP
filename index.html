@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entendiendo FTP: Modo Activo vs Pasivo</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --code-bg: #1e1e1e;
+            --code-text: #d4d4d4;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        header {
+            border-bottom: 2px solid var(--primary-color);
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+        }
+        h1, h2, h3 { color: var(--primary-color); }
+        pre {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+            text-align: left;
+        }
+        th { background-color: #f1f5f9; font-weight: 600; }
+        .note {
+            background-color: #e0f2fe;
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🌐 Arquitectura de Red: Protocolo FTP</h1>
+        <p>Documentación técnica sobre el flujo de comunicación en FTP Activo y Pasivo.</p>
+    </header>
+
+    <main>
+        <section>
+            <h2>🔴 1. FTP en Modo Activo (Active Mode)</h2>
+            <p><strong>Definición:</strong> El cliente inicia el canal de control, pero <strong>el servidor es quien inicia el canal de datos</strong> hacia el cliente.</p>
+            
+            <h3>Flujo de Comunicación</h3>
+            <ol>
+                <li>El <strong>Cliente</strong> abre un puerto aleatorio <code>N</code> (>1023) y se conecta al puerto <code>21</code> del <strong>Servidor</strong> (Canal de Control).</li>
+                <li>El <strong>Cliente</strong> envía el comando <code>PORT N+1</code> informando dónde está escuchando.</li>
+                <li>El <strong>Servidor</strong> usa su puerto local <code>20</code> para conectarse al puerto <code>N+1</code> del cliente (Canal de Datos).</li>
+            </ol>
+
+            <h3>Diagrama de Secuencia</h3>
+<pre><code>[Cliente] (Puerto N)   --- TCP SYN (Control) ---> [Servidor] (Puerto 21)
+[Cliente] (Puerto N)   <-- TCP ACK (Control) ---  [Servidor] (Puerto 21)
+[Cliente] (Puerto N)   --- Comando PORT N+1 --->  [Servidor] (Puerto 21)
+[Cliente] (Puerto N+1) <-- TCP SYN (Datos) -----  [Servidor] (Puerto 20)
+[Cliente] (Puerto N+1) --- TCP ACK (Datos) ---->  [Servidor] (Puerto 20)</code></pre>
+
+            <p><strong>Problema con Firewalls/NAT:</strong> Como el servidor inicia una conexión entrante hacia el cliente, los firewalls locales o routers NAT del cliente suelen bloquear esta solicitud, haciendo que falle la transferencia.</p>
+        </section>
+
+        <hr>
+
+        <section>
+            <h2>🟢 2. FTP en Modo Pasivo (Passive Mode o PASV)</h2>
+            <p><strong>Definición:</strong> El <strong>cliente inicia ambos canales</strong> (control y datos). Creado para sortear los bloqueos de Firewall del lado del cliente.</p>
+
+            <h3>Flujo de Comunicación</h3>
+            <ol>
+                <li>El <strong>Cliente</strong> se conecta al puerto <code>21</code> del <strong>Servidor</strong> (Canal de Control).</li>
+                <li>El <strong>Cliente</strong> envía el comando <code>PASV</code>.</li>
+                <li>El <strong>Servidor</strong> abre un puerto aleatorio <code>P</code> (>1023) y le dice al cliente: "Estoy escuchando pasivamente en el puerto P".</li>
+                <li>El <strong>Cliente</strong> se conecta al puerto <code>P</code> del servidor para el Canal de Datos.</li>
+            </ol>
+
+            <h3>Diagrama de Secuencia</h3>
+<pre><code>[Cliente] (Puerto N)   --- TCP SYN (Control) ---> [Servidor] (Puerto 21)
+[Cliente] (Puerto N)   <-- TCP ACK (Control) ---  [Servidor] (Puerto 21)
+[Cliente] (Puerto N)   --- Comando PASV ------->  [Servidor] (Puerto 21)
+[Cliente] (Puerto N)   <-- Respuesta Puerto P --  [Servidor] (Puerto 21)
+[Cliente] (Puerto N+1) --- TCP SYN (Datos) ---->  [Servidor] (Puerto P)
+[Cliente] (Puerto N+1) <-- TCP ACK (Datos) -----  [Servidor] (Puerto P)</code></pre>
+
+            <p><strong>Problema con Firewalls/NAT:</strong> Traslada la carga administrativa al servidor. El servidor debe tener un rango de puertos altos abiertos en su Firewall para permitir las conexiones entrantes de los clientes.</p>
+        </section>
+
+        <section>
+            <h2>📊 3. Tabla Comparativa Resumen</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Característica</th>
+                        <th>Modo Activo</th>
+                        <th>Modo Pasivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Inicia Canal de Datos</strong></td>
+                        <td>Servidor</td>
+                        <td>Cliente</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Puertos Servidor</strong></td>
+                        <td>21 (Control), 20 (Datos)</td>
+                        <td>21 (Control), >1023 (Datos)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Puertos Cliente</strong></td>
+                        <td>>1023 (Ambos)</td>
+                        <td>>1023 (Ambos)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Amigable con Firewall de...</strong></td>
+                        <td>Servidor</td>
+                        <td>Cliente</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                <strong>💡 Nota del Arquitecto:</strong> El Modo Pasivo es el estándar de facto actual por la prevalencia de NATs en clientes. Sin embargo, para entornos modernos, se recomienda encarecidamente usar <strong>SFTP (SSH)</strong> sobre el puerto 22.
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>
